@@ -10,7 +10,7 @@ from bs4 import BeautifulSoup as bs
 def _extract_html(bs_data):
     k = bs_data.find_all(class_="_5pcr userContentWrapper")
     postBigDict = list()
-
+    print(len(k))
     for item in k:
 
         # Post Text
@@ -25,19 +25,27 @@ def _extract_html(bs_data):
 
             postDict['Post'] = text
 
+        # Time
+        time_element = item.find(class_="_5ptz")
+        if time_element:
+            utime = time_element.get("data-utime")
+        else:
+            utime = None
+        postDict['time'] = utime
+
         # Links
 
         postLinks = item.find_all(class_="_6ks")
         postDict['Link'] = ""
         for postLink in postLinks:
-            postDict['Link'] = postLink.find('a').get('href')
+            postDict['Link'] += postLink.find('a').get('href')
 
         # Images
 
         postPictures = item.find_all(class_="scaledImageFitWidth img")
         postDict['Image'] = ""
         for postPicture in postPictures:
-            postDict['Image'] = postPicture.get('src')
+            postDict['Image'] += postPicture.get('src')
 
         # Comments
 
@@ -68,33 +76,35 @@ def _extract_html(bs_data):
 
         toolBar = item.find_all(attrs={"role": "toolbar"})
 
-        if not toolBar:  # pretty fun
-            continue
+        if toolBar:  # pretty fun
 
-        postDict['Reaction'] = dict()
+            postDict['Reaction'] = dict()
 
-        for toolBar_child in toolBar[0].children:
+            for toolBar_child in toolBar[0].children:
 
-            str = toolBar_child['data-testid']
-            reaction = str.split("UFI2TopReactions/tooltip_")[1]
+                str = toolBar_child['data-testid']
+                reaction = str.split("UFI2TopReactions/tooltip_")[1]
 
-            postDict['Reaction'][reaction] = 0
+                postDict['Reaction'][reaction] = 0
 
-            for toolBar_child_child in toolBar_child.children:
+                for toolBar_child_child in toolBar_child.children:
 
-                num = toolBar_child_child['aria-label'].split()[0]
+                    num = toolBar_child_child['aria-label'].split()[0]
 
-                # fix weird ',' happening in some reaction values
-                num = num.replace(',', '.')
+                    # fix weird ',' happening in some reaction values
+                    num = num.replace(',', '.')
 
-                if 'K' in num:
-                    realNum = float(num[:-1]) * 1000
-                else:
-                    realNum = float(num)
+                    if 'K' in num:
+                        realNum = float(num[:-1]) * 1000
+                    else:
+                        realNum = float(num)
 
-                postDict['Reaction'][reaction] = realNum
+                    postDict['Reaction'][reaction] = realNum
 
-        postBigDict.append(postDict)
+            postBigDict.append(postDict)
+
+        else:
+            postBigDict.append(postDict)
 
     return postBigDict
 
@@ -115,14 +125,14 @@ def extract(page, numOfPost, infinite_scroll=False, scrape_comment=False):
         "profile.default_content_setting_values.notifications": 1
     })
 
-    browser = webdriver.Chrome(executable_path="./chromedriver", chrome_options=option)
+    browser = webdriver.Chrome(executable_path="./chromedriver", options=option)
     browser.get("http://facebook.com")
     browser.maximize_window()
     browser.find_element_by_name("email").send_keys(email)
     browser.find_element_by_name("pass").send_keys(password)
     browser.find_element_by_id('loginbutton').click()
 
-    browser.get("http://facebook.com/" + page + "/posts")
+    browser.get("http://facebook.com/" + page)
 
     if infinite_scroll:
         lenOfPage = browser.execute_script(
@@ -136,7 +146,10 @@ def extract(page, numOfPost, infinite_scroll=False, scrape_comment=False):
     lastCount = -1
     match = False
 
-    while not match:
+    tmp_0 = 0
+    tmp_1 = 1
+    while not match or tmp_0!=tmp_1:
+        tmp_0 = tmp_1
         if infinite_scroll:
             lastCount = lenOfPage
         else:
@@ -151,9 +164,11 @@ def extract(page, numOfPost, infinite_scroll=False, scrape_comment=False):
                 "window.scrollTo(0, document.body.scrollHeight);var lenOfPage=document.body.scrollHeight;return "
                 "lenOfPage;")
         else:
-            browser.execute_script(
-                "window.scrollTo(0, document.body.scrollHeight);var lenOfPage=document.body.scrollHeight;return "
-                "lenOfPage;")
+            for i in range(10):
+                tmp_1 = browser.execute_script(
+                    f"window.scrollTo(0, {i/10}*document.body.scrollHeight);var lenOfPage=document.body.scrollHeight;return "
+                    "lenOfPage;")
+                time.sleep(5)
 
         if lastCount == lenOfPage:
             match = True
@@ -201,7 +216,7 @@ if __name__ == "__main__":
                                  default=0)
     optional_parser.add_argument('-usage', '-u', help="What to do with the data: "
                                                       "Print on Screen (PS), "
-                                                      "Write to Text File (WT) (Default is WT)", default="PS")
+                                                      "Write to Text File (WT) (Default is WT)", default="WT")
 
     optional_parser.add_argument('-comments', '-c', help="Scrape ALL Comments of Posts (y/n) (Default is n). When "
                                                          "enabled for pages where there are a lot of comments it can "
@@ -219,9 +234,8 @@ if __name__ == "__main__":
     postBigDict = extract(page=args.page, numOfPost=args.len, infinite_scroll=infinite, scrape_comment=scrape_comment)
 
     if args.usage == "WT":
-        with open('output.txt', 'w') as file:
-            for post in postBigDict:
-                file.write(json.dumps(post))  # use json load to recover
+        with open('output.json', 'w') as file:
+            file.write(json.dumps({"Posts":postBigDict}))  # use json load to recover
     else:
         for post in postBigDict:
             print(post)
