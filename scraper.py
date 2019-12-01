@@ -209,7 +209,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Facebook Page Scraper")
     required_parser = parser.add_argument_group("required arguments")
     required_parser.add_argument('-page', '-p', help="The Facebook Public Page you want to scrape", required=True)
-    required_parser.add_argument('-len', '-l', help="Number of Posts you want to scrape", type=int, required=True)
+    required_parser.add_argument('-len', '-l', help="Number of Posts you want to scrape", type=int, default=0, required=False)
     optional_parser = parser.add_argument_group("optional arguments")
     optional_parser.add_argument('-infinite', '-i',
                                  help="Scroll until the end of the page (1 = infinite) (Default is 0)", type=int,
