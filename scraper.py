@@ -33,6 +33,21 @@ def _extract_html(bs_data):
             utime = None
         postDict['time'] = utime
 
+        # Time
+        time_element = item.find(class_="_5ptz")
+        if time_element:
+            utime = time_element.get("data-utime")
+        else:
+            utime = None
+        postDict['time'] = utime
+
+        # Profile
+
+        profile = item.find_all(class_="profileLink")
+        postDict['profile'] = ""
+        for profile_data in profile:
+            postDict['profile'] += profile_data.text
+
         # Links
 
         postLinks = item.find_all(class_="_6ks")
@@ -164,11 +179,9 @@ def extract(page, numOfPost, infinite_scroll=False, scrape_comment=False):
                 "window.scrollTo(0, document.body.scrollHeight);var lenOfPage=document.body.scrollHeight;return "
                 "lenOfPage;")
         else:
-            for i in range(10):
-                tmp_1 = browser.execute_script(
-                    f"window.scrollTo(0, {i/10}*document.body.scrollHeight);var lenOfPage=document.body.scrollHeight;return "
-                    "lenOfPage;")
-                time.sleep(5)
+            tmp_1 = browser.execute_script(
+                "window.scrollTo(0, document.body.scrollHeight);var lenOfPage=document.body.scrollHeight;return "
+                "lenOfPage;")
 
         if lastCount == lenOfPage:
             match = True
