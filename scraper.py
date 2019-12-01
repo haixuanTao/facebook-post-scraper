@@ -10,7 +10,7 @@ from bs4 import BeautifulSoup as bs
 def _extract_html(bs_data):
     k = bs_data.find_all(class_="_5pcr userContentWrapper")
     postBigDict = list()
-    print(len(k))
+
     for item in k:
 
         # Post Text
